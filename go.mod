@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/jmoiron/sqlx v1.3.4
-	github.com/trilobio/ar3 v0.0.1
+	github.com/trilobio/ar3 v0.0.2
 	github.com/trilobio/kinematics v0.0.4
 	modernc.org/sqlite v1.13.1
 )

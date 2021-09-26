@@ -23,8 +23,9 @@ func TestLabware(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to get all labwares. Got error: %s", err)
 	}
-	if len(labwares) != 2 {
-		t.Errorf("Should have gotten 2 labwares. Got %d", len(labwares))
+	// One extra from main
+	if len(labwares) != 3 {
+		t.Errorf("Should have gotten 3 labwares. Got %d", len(labwares))
 	}
 
 	// Get one labware
@@ -56,8 +57,8 @@ func TestLabware(t *testing.T) {
 }
 
 func TestDeck(t *testing.T) {
-	deck1 := Deck{Name: "deck1", Locations: []Location{Location{Name: "1", X: 1, Y: 1, Z: 1}}}
-	deck2 := Deck{Name: "deck2", Locations: []Location{Location{Name: "2", X: 2, Y: 2, Z: 2}}}
+	deck1 := Deck{Name: "deck1", Locations: []Location{Location{Name: "l1", X: 1, Y: 1, Z: 1}}}
+	deck2 := Deck{Name: "deck2", Locations: []Location{Location{Name: "l2", X: 2, Y: 2, Z: 2}}}
 	tx := db.MustBegin()
 
 	var err error
@@ -73,8 +74,9 @@ func TestDeck(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to get all decks. Got error: %s", err)
 	}
-	if len(decks) != 2 {
-		t.Errorf("Should have gotten 2 decks. Got %d", len(decks))
+	// One extra from main
+	if len(decks) != 3 {
+		t.Errorf("Should have gotten 3 decks. Got %d", len(decks))
 	}
 
 	// Get one deck
@@ -121,23 +123,10 @@ func TestDeck(t *testing.T) {
 }
 
 func TestExecuteProtocol(t *testing.T) {
-	// Insert A deck and a plate labware
-	tx := db.MustBegin()
-	nestPlate := Labware{"nest_96_wellplate_100ul_pcr_full_skirt", 10, []Well{Well{Address: "A1", Depth: 14.78, Diameter: 5.34, X: 14.38, Y: 74.24, Z: 0.92}, Well{Address: "A1", Depth: 14.78, Diameter: 5.34, X: 14.38, Y: 65.24, Z: 0.92}}}
-	deck := Deck{Name: "deck", Locations: []Location{Location{Name: "1", X: 1, Y: 1, Z: 1}}}
-
 	var err error
-	err = CreateLabware(tx, nestPlate)
-	if err != nil {
-		t.Errorf("Failed to CreateLabware: %s", err)
-	}
-	err = CreateDeck(tx, deck)
-	if err != nil {
-		t.Errorf("Failed to CreateDeck: %s", err)
-	}
-
+	tx := db.MustBegin()
 	// Calibrate deck
-	err = SetDeckCalibration(tx, "deck", 323.08000000000004, -3.4527691855160434e-14, 474.77)
+	err = SetDeckCalibration(tx, "deck", 132, 158, 121)
 	if err != nil {
 		t.Errorf("Failed to SetDeckCalibration: %s", err)
 	}
@@ -145,15 +134,37 @@ func TestExecuteProtocol(t *testing.T) {
 	// Command MoveXYZ
 	var commandXYZ []CommandXyz
 	commandXYZ = append(commandXYZ, CommandXyz{"movexyz", 132, 158, 121})
-	//commandXYZ = append(commandXYZ, CommandXyz{"movexyz", 132, 158, 121}) // Move up by 20
+	commandXYZ = append(commandXYZ, CommandXyz{"movexyz", 132, 158, 141}) // Move up by 20
 	b, err := json.Marshal(&commandXYZ)
 	if err != nil {
 		t.Errorf("Failed to json.Marshal: %s", err)
 	}
 
 	// ExecuteProtocol
-	err = ExecuteProtocol(app.ArmMock, b)
+	err = ExecuteProtocol(tx, app.ArmMock, b)
 	if err != nil {
 		t.Errorf("Failed to ExecuteProtocol: %s", err)
+	}
+
+	// Command to go to a certain plate
+	var moves []CommandMove
+	moves = append(moves, CommandMove{Command: "move", Deck: "deck", Location: "1", LabwareName: "nest_96_wellplate_100ul_pcr_full_skirt", Address: "A1", DepthFromBottom: 1})
+	moves = append(moves, CommandMove{Command: "move", Deck: "deck", Location: "1", LabwareName: "nest_96_wellplate_100ul_pcr_full_skirt", Address: "B1", DepthFromBottom: 1})
+
+	m, err := json.Marshal(&moves)
+	if err != nil {
+		t.Errorf("Failed to json.Marshal: %s", err)
+	}
+
+	// ExecuteProtocol
+	err = ExecuteProtocol(tx, app.ArmMock, m)
+	if err != nil {
+		t.Errorf("Failed to ExecuteProtocol on moves: %s", err)
+	}
+
+	// Rollback
+	err = tx.Rollback()
+	if err != nil {
+		t.Errorf("Rollback should succeed")
 	}
 }

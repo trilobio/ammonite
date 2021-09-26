@@ -197,7 +197,7 @@ type CommandMove struct {
 
 var defaultQuaternion kinematics.Quaternion = kinematics.Quaternion{W: 0.8063737663657652, X: -0.575080903948282, Y: -0.13494466363153904, Z: 0.02886590702694046}
 
-func ExecuteProtocol(arm ar3.Arm, protocol []byte) error {
+func ExecuteProtocol(tx *sqlx.Tx, arm ar3.Arm, protocol []byte) error {
 	err := arm.MoveJointRadians(5, 10, 10, 10, 10, 1, 1, 1, 1, 1, 1, 0)
 	if err != nil {
 		return err
@@ -236,6 +236,59 @@ func ExecuteProtocol(arm ar3.Arm, protocol []byte) error {
 			if err != nil {
 				return err
 			}
+			// Get deck calibration
+			deck, err := GetDeck(tx, move.Deck)
+			if err != nil {
+				return err
+			}
+			if !deck.Calibrated {
+				return fmt.Errorf("Please calibrate the deck")
+			}
+			locations := make(map[string]Location)
+			for _, location := range deck.Locations {
+				locations[location.Name] = location
+			}
+			if _, ok := locations[move.Location]; !ok {
+				return fmt.Errorf("Location not in deck")
+			}
+			targetLocation := locations[move.Location]
+
+			// Get labware
+			labware, err := GetLabware(tx, move.LabwareName)
+			if err != nil {
+				return err
+			}
+			wells := make(map[string]Well)
+			for _, well := range labware.Wells {
+				wells[well.Address] = well
+			}
+			if _, ok := wells[move.Address]; !ok {
+				return fmt.Errorf("Well not in labware")
+			}
+			targetWell := wells[move.Address]
+
+			// Move above the well, then into it
+			locationOffsetX := deck.X + targetLocation.X
+			locationOffsetY := deck.Y + targetLocation.Y
+			locationOffsetZ := deck.Z + targetLocation.Z
+			wellOffsetX := locationOffsetX + targetWell.X
+			wellOffsetY := locationOffsetY + targetWell.Y
+			wellTop := locationOffsetZ + targetWell.Z + labware.ZDimension + 5
+			wellBottom := locationOffsetZ + targetWell.Z + move.DepthFromBottom
+
+			err = arm.Move(25, 10, 10, 10, 10, kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellTop}, Rotation: defaultQuaternion})
+			if err != nil {
+				return err
+			}
+			err = arm.Move(25, 10, 10, 10, 10, kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellBottom}, Rotation: defaultQuaternion})
+			if err != nil {
+				return err
+			}
+			err = arm.Move(25, 10, 10, 10, 10, kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellTop}, Rotation: defaultQuaternion})
+			if err != nil {
+				return err
+			}
+
 		}
 	}
 	return nil
@@ -284,7 +337,7 @@ CREATE TABLE IF NOT EXISTS deck (
 );
 
 CREATE TABLE IF NOT EXISTS location (
-	name TEXT PRIMARY KEY,
+	name TEXT,
 	deck TEXT NOT NULL REFERENCES deck(name) ON DELETE CASCADE,
 	x REAL NOT NULL,
         y REAL NOT NULL,
