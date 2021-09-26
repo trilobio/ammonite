@@ -132,10 +132,13 @@ func TestExecuteProtocol(t *testing.T) {
 	}
 
 	// Command MoveXYZ
-	var commandXYZ []CommandXyz
-	commandXYZ = append(commandXYZ, CommandXyz{"movexyz", 132, 158, 121})
-	commandXYZ = append(commandXYZ, CommandXyz{"movexyz", 132, 158, 141}) // Move up by 20
-	b, err := json.Marshal(&commandXYZ)
+	var moves []interface{}
+	moves = append(moves, CommandXyz{"movexyz", 132, 158, 121})
+	moves = append(moves, CommandXyz{"movexyz", 132, 158, 141}) // Move up by 20
+	moves = append(moves, CommandMove{Command: "move", Deck: "deck", Location: "1", LabwareName: "nest_96_wellplate_100ul_pcr_full_skirt", Address: "A1", DepthFromBottom: 1})
+	moves = append(moves, CommandMove{Command: "move", Deck: "deck", Location: "1", LabwareName: "nest_96_wellplate_100ul_pcr_full_skirt", Address: "B1", DepthFromBottom: 1})
+
+	b, err := json.Marshal(&moves)
 	if err != nil {
 		t.Errorf("Failed to json.Marshal: %s", err)
 	}
@@ -144,22 +147,6 @@ func TestExecuteProtocol(t *testing.T) {
 	err = ExecuteProtocol(tx, app.ArmMock, b)
 	if err != nil {
 		t.Errorf("Failed to ExecuteProtocol: %s", err)
-	}
-
-	// Command to go to a certain plate
-	var moves []CommandMove
-	moves = append(moves, CommandMove{Command: "move", Deck: "deck", Location: "1", LabwareName: "nest_96_wellplate_100ul_pcr_full_skirt", Address: "A1", DepthFromBottom: 1})
-	moves = append(moves, CommandMove{Command: "move", Deck: "deck", Location: "1", LabwareName: "nest_96_wellplate_100ul_pcr_full_skirt", Address: "B1", DepthFromBottom: 1})
-
-	m, err := json.Marshal(&moves)
-	if err != nil {
-		t.Errorf("Failed to json.Marshal: %s", err)
-	}
-
-	// ExecuteProtocol
-	err = ExecuteProtocol(tx, app.ArmMock, m)
-	if err != nil {
-		t.Errorf("Failed to ExecuteProtocol on moves: %s", err)
 	}
 
 	// Rollback
