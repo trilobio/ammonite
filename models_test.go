@@ -19,13 +19,9 @@ func TestLabware(t *testing.T) {
 	}
 
 	// Get both labwares
-	labwares, err := GetLabwares(tx)
+	_, err = GetLabwares(tx)
 	if err != nil {
 		t.Errorf("Failed to get all labwares. Got error: %s", err)
-	}
-	// One extra from main
-	if len(labwares) != 3 {
-		t.Errorf("Should have gotten 3 labwares. Got %d", len(labwares))
 	}
 
 	// Get one labware
@@ -57,12 +53,12 @@ func TestLabware(t *testing.T) {
 }
 
 func TestDeck(t *testing.T) {
-	deck1 := Deck{Name: "deck1", Locations: []Location{Location{Name: "l1", X: 1, Y: 1, Z: 1}}}
-	deck2 := Deck{Name: "deck2", Locations: []Location{Location{Name: "l2", X: 2, Y: 2, Z: 2}}}
+	deck1 := InputDeck{Name: "deck1", Locations: []Location{Location{Name: "l1", X: 1, Y: 1, Z: 1}}}
+	deck2 := InputDeck{Name: "deck2", Locations: []Location{Location{Name: "l2", X: 2, Y: 2, Z: 2}}}
 	tx := db.MustBegin()
 
 	var err error
-	for _, deck := range []Deck{deck1, deck2} {
+	for _, deck := range []InputDeck{deck1, deck2} {
 		err = CreateDeck(tx, deck)
 		if err != nil {
 			t.Errorf("Failed to create deck. Got error: %s", err)
@@ -130,6 +126,11 @@ func TestExecuteProtocol(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to SetDeckCalibration: %s", err)
 	}
+	// Commit
+	err = tx.Commit()
+	if err != nil {
+		t.Errorf("Rollback should succeed")
+	}
 
 	// Command MoveXYZ
 	var moves []interface{}
@@ -144,14 +145,8 @@ func TestExecuteProtocol(t *testing.T) {
 	}
 
 	// ExecuteProtocol
-	err = ExecuteProtocol(tx, app.ArmMock, b)
+	err = ExecuteProtocol(db, app.ArmMock, b)
 	if err != nil {
 		t.Errorf("Failed to ExecuteProtocol: %s", err)
-	}
-
-	// Rollback
-	err = tx.Rollback()
-	if err != nil {
-		t.Errorf("Rollback should succeed")
 	}
 }

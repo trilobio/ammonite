@@ -37,13 +37,13 @@ func GetLabwares(tx *sqlx.Tx) ([]Labware, error) {
 	if err != nil {
 		return labwares, err
 	}
-	for _, labware := range labwares {
+	for i, labware := range labwares {
 		var wells []Well
 		err = tx.Select(&wells, "SELECT address, depth, diameter, x, y, z FROM well WHERE labware = ?", labware.Name)
 		if err != nil {
 			return labwares, err
 		}
-		labware.Wells = wells
+		labwares[i].Wells = wells
 	}
 	return labwares, nil
 
@@ -93,6 +93,11 @@ func DeleteLabware(tx *sqlx.Tx, name string) error {
 
 ******************************************************************************/
 
+type InputDeck struct {
+	Name      string     `json:"name" db:"name"`
+	Locations []Location `json:"locations"`
+}
+
 type Deck struct {
 	Name       string     `json:"name" db:"name"`
 	Calibrated bool       `json:"calibrated" db:"calibrated"`
@@ -115,13 +120,13 @@ func GetDecks(tx *sqlx.Tx) ([]Deck, error) {
 	if err != nil {
 		return decks, err
 	}
-	for _, deck := range decks {
+	for i, deck := range decks {
 		var locations []Location
 		err = tx.Select(&locations, "SELECT name, x, y, z FROM location WHERE deck = ?", deck.Name)
 		if err != nil {
 			return decks, err
 		}
-		deck.Locations = locations
+		decks[i].Locations = locations
 	}
 	return decks, nil
 
@@ -143,7 +148,7 @@ func GetDeck(tx *sqlx.Tx, name string) (Deck, error) {
 
 }
 
-func CreateDeck(tx *sqlx.Tx, deck Deck) error {
+func CreateDeck(tx *sqlx.Tx, deck InputDeck) error {
 	_, err := tx.Exec("INSERT INTO deck(name) VALUES (?)", deck.Name)
 	if err != nil {
 		return err
@@ -195,9 +200,16 @@ type CommandMove struct {
 	DepthFromBottom float64 `json:"depth_from_bottom"`
 }
 
+type Command struct {
+	Command  string
+	Pose     kinematics.Pose
+	WaitTime int // Milliseconds
+}
+
 var defaultQuaternion kinematics.Quaternion = kinematics.Quaternion{W: 0.8063737663657652, X: -0.575080903948282, Y: -0.13494466363153904, Z: 0.02886590702694046}
 
-func ExecuteProtocol(tx *sqlx.Tx, arm ar3.Arm, protocol []byte) error {
+func ExecuteProtocol(db *sqlx.DB, arm ar3.Arm, protocol []byte) error {
+	tx := db.MustBegin()
 	err := arm.MoveJointRadians(5, 10, 10, 10, 10, 1, 1, 1, 1, 1, 1, 0)
 	if err != nil {
 		return err
@@ -206,6 +218,7 @@ func ExecuteProtocol(tx *sqlx.Tx, arm ar3.Arm, protocol []byte) error {
 	if err := json.Unmarshal(protocol, &steps); err != nil {
 		return err
 	}
+	var commands []Command
 	for i, step := range steps {
 		stepMap := make(map[string]interface{})
 		err := json.Unmarshal(step, &stepMap)
@@ -226,10 +239,7 @@ func ExecuteProtocol(tx *sqlx.Tx, arm ar3.Arm, protocol []byte) error {
 				return err
 			}
 			// Move arm to XYZ position
-			err = arm.Move(25, 10, 10, 10, 10, kinematics.Pose{Position: kinematics.Position{X: movexyz.X, Y: movexyz.Y, Z: movexyz.Z}, Rotation: defaultQuaternion})
-			if err != nil {
-				return err
-			}
+			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: movexyz.X, Y: movexyz.Y, Z: movexyz.Z}, Rotation: defaultQuaternion}, 0})
 		case "move":
 			var move CommandMove
 			err := json.Unmarshal(step, &move)
@@ -276,19 +286,38 @@ func ExecuteProtocol(tx *sqlx.Tx, arm ar3.Arm, protocol []byte) error {
 			wellTop := locationOffsetZ + targetWell.Z + labware.ZDimension + 5
 			wellBottom := locationOffsetZ + targetWell.Z + move.DepthFromBottom
 
-			err = arm.Move(25, 10, 10, 10, 10, kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellTop}, Rotation: defaultQuaternion})
-			if err != nil {
-				return err
-			}
-			err = arm.Move(25, 10, 10, 10, 10, kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellBottom}, Rotation: defaultQuaternion})
-			if err != nil {
-				return err
-			}
-			err = arm.Move(25, 10, 10, 10, 10, kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellTop}, Rotation: defaultQuaternion})
-			if err != nil {
-				return err
-			}
+			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellTop}, Rotation: defaultQuaternion}, 0})
+			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellBottom}, Rotation: defaultQuaternion}, 0})
+			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellTop}, Rotation: defaultQuaternion}, 0})
+		}
+	}
+	// Exit our transaction
+	err = tx.Rollback()
+	if err != nil {
+		return err
+	}
 
+	// Now execute the commands
+	err = executeProtocolWithCache(arm, commands)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func executeProtocolWithCache(arm ar3.Arm, commands []Command) error {
+	var err error
+	for _, command := range commands {
+		if command.Command == "move" {
+			err = arm.Move(25, 10, 10, 10, 10, command.Pose)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = arm.Wait(command.WaitTime)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

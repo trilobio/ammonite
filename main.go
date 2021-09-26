@@ -11,11 +11,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jmoiron/sqlx"
+	"github.com/julienschmidt/httprouter"
 	"github.com/trilobio/ar3"
+	"io/ioutil"
 	"log"
 	_ "modernc.org/sqlite"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 /******************************************************************************
@@ -51,7 +54,7 @@ func main() {
 // App is a struct containing all information about the currently deployed
 // application, such as the router and database.
 type App struct {
-	Router  *http.ServeMux
+	Router  *httprouter.Router
 	DB      *sqlx.DB
 	ArmMock ar3.Arm
 	Arm     ar3.Arm
@@ -60,41 +63,77 @@ type App struct {
 // initalizeApp initializes an App for all endpoints to use.
 func initializeApp(db *sqlx.DB) App {
 	var app App
-	app.Router = http.NewServeMux()
+	app.Router = httprouter.New()
 	app.DB = db
 	app.Arm = ar3.ConnectMock()
 	app.ArmMock = ar3.ConnectMock()
 
 	// Basic routes
-	app.Router.HandleFunc("/api/ping", app.Ping)
-	app.Router.HandleFunc("/swagger.json", app.SwaggerJSON)
-	app.Router.HandleFunc("/docs", app.SwaggerDocs)
+	app.Router.GET("/api/ping", app.Ping)
+	app.Router.GET("/swagger.json", app.SwaggerJSON)
+	app.Router.GET("/docs", app.SwaggerDocs)
+
+	// Labwares
+	app.Router.GET("/api/labwares", rootHandler(app.ApiGetLabwares).ServeHTTP)
+	app.Router.GET("/api/labware/:name", rootHandler(app.ApiGetLabware).ServeHTTP)
+	app.Router.POST("/api/labware", rootHandler(app.ApiPostLabware).ServeHTTP)
+	app.Router.DELETE("/api/labware/:name", rootHandler(app.ApiDeleteLabware).ServeHTTP)
+
+	// Decks
+	app.Router.GET("/api/decks", rootHandler(app.ApiGetDecks).ServeHTTP)
+	app.Router.GET("/api/deck/:name", rootHandler(app.ApiGetDeck).ServeHTTP)
+	app.Router.POST("/api/deck", rootHandler(app.ApiPostDeck).ServeHTTP)
+	app.Router.POST("/api/deck/calibrate/:name/:x/:y/:z", rootHandler(app.ApiCalibrateDeck).ServeHTTP)
+	app.Router.DELETE("/api/deck/:name", rootHandler(app.ApiDeleteDeck).ServeHTTP)
 
 	return app
+}
+
+type rootHandler func(http.ResponseWriter, *http.Request, httprouter.Params) error
+
+// rootHandler handles errors for endpoints.
+func (fn rootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Run function
+	err := fn(w, r, p)
+	if err != nil {
+		log.Printf("ERROR: %s", err) // Log the error
+		w.WriteHeader(400)
+		_, err = w.Write([]byte(err.Error()))
+		if err != nil {
+			log.Printf("An error occurred while writing error: %v", err)
+		}
+	}
+}
+
+type Message struct {
+	Message string `json:"message"`
 }
 
 // Ping is a simple route for verifying that the service is online.
 // @Summary A pingable endpoint
 // @Tags dev
 // @Produce plain
-// @Success 200 {string} map[string]string
+// @Success 200 {object} Message
 // @Router /ping [get]
-func (app *App) Ping(w http.ResponseWriter, r *http.Request) {
+func (app *App) Ping(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	encoder := json.NewEncoder(w)
-	_ = encoder.Encode(map[string]string{"message": "Online"})
+	_ = encoder.Encode(Message{"Online"})
 }
 
 //go:embed docs/swagger.json
 var doc []byte
 
 // SwaggerJSON provides the swagger docs for this api in JSON format.
-func (app *App) SwaggerJSON(w http.ResponseWriter, r *http.Request) {
+func (app *App) SwaggerJSON(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	_, _ = w.Write(doc)
 }
 
 // SwaggerDocs provides a human-friendly swagger ui interface.
-func (app *App) SwaggerDocs(w http.ResponseWriter, r *http.Request) {
+func (app *App) SwaggerDocs(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	// https://stackoverflow.com/questions/55733609/display-swagger-ui-on-flask-without-any-hookups
 	swaggerDoc := fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
@@ -128,4 +167,336 @@ func (app *App) SwaggerDocs(w http.ResponseWriter, r *http.Request) {
 </body>
 </html>`, string(doc))
 	_, _ = w.Write([]byte(swaggerDoc))
+}
+
+/******************************************************************************
+
+                                Labware
+
+******************************************************************************/
+
+// ApiGetLabwares is a route for getting all labwares.
+// @Summary Get all labwares
+// @Tags labware
+// @Produce json
+// @Success 200 {object} []Labware
+// @Failure 400 {string} string
+// @Router /labwares [get]
+func (app *App) ApiGetLabwares(w http.ResponseWriter, r *http.Request, _ httprouter.Params) error {
+	tx, err := app.DB.Beginx()
+	if err != nil {
+		return err
+	}
+
+	labwares, err := GetLabwares(tx)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Rollback()
+	if err != nil {
+		return err
+	}
+
+	err = json.NewEncoder(w).Encode(labwares)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+
+// ApiGetLabware is a route for getting a single labware.
+// @Summary Get one labware
+// @Tags labware
+// @Produce json
+// @Param name path string true "Labware name"
+// @Success 200 {object} Labware
+// @Failure 400 {string} string
+// @Router /labware/{name} [get]
+func (app *App) ApiGetLabware(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
+	tx, err := app.DB.Beginx()
+	if err != nil {
+		return err
+	}
+
+	labware, err := GetLabware(tx, ps.ByName("name"))
+	if err != nil {
+		return err
+	}
+
+	err = tx.Rollback()
+	if err != nil {
+		return err
+	}
+
+	err = json.NewEncoder(w).Encode(labware)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+
+// ApiPostLabware is a route to create a labware.
+// @Summary Create one labware
+// @Tags labware
+// @Accept json
+// @Produce json
+// @Param labware body Labware true "Labware"
+// @Success 200 {string} string
+// @Failure 400 {string} string
+// @Router /labware/ [post]
+func (app *App) ApiPostLabware(w http.ResponseWriter, r *http.Request, _ httprouter.Params) error {
+	tx, err := app.DB.Beginx()
+	if err != nil {
+		return err
+	}
+
+	var labware Labware
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(reqBody, &labware)
+	if err != nil {
+		return err
+	}
+
+	err = CreateLabware(tx, labware)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	err = json.NewEncoder(w).Encode(Message{"successful"})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ApiDeleteLabware is a route to delete a labware.
+// @Summary Delete one labware
+// @Tags labware
+// @Produce json
+// @Param name path string true "Labware name"
+// @Success 200 {string} string
+// @Failure 400 {string} string
+// @Router /labware/{name} [delete]
+func (app *App) ApiDeleteLabware(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
+	tx, err := app.DB.Beginx()
+	if err != nil {
+		return err
+	}
+
+	err = DeleteLabware(tx, ps.ByName("name"))
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	err = json.NewEncoder(w).Encode(Message{"successful"})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+/******************************************************************************
+
+                                Deck
+
+******************************************************************************/
+
+// ApiGetDecks is a route for getting all decks.
+// @Summary Get all decks
+// @Tags deck
+// @Produce json
+// @Success 200 {object} []Deck
+// @Failure 400 {string} string
+// @Router /decks [get]
+func (app *App) ApiGetDecks(w http.ResponseWriter, r *http.Request, _ httprouter.Params) error {
+	tx, err := app.DB.Beginx()
+	if err != nil {
+		return err
+	}
+
+	decks, err := GetDecks(tx)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Rollback()
+	if err != nil {
+		return err
+	}
+
+	err = json.NewEncoder(w).Encode(decks)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+
+// ApiGetDeck is a route for getting a single deck.
+// @Summary Get one deck
+// @Tags deck
+// @Produce json
+// @Param name path string true "Deck name"
+// @Success 200 {object} Deck
+// @Failure 400 {string} string
+// @Router /deck/{name} [get]
+func (app *App) ApiGetDeck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
+	tx, err := app.DB.Beginx()
+	if err != nil {
+		return err
+	}
+
+	deck, err := GetDeck(tx, ps.ByName("name"))
+	if err != nil {
+		return err
+	}
+
+	err = tx.Rollback()
+	if err != nil {
+		return err
+	}
+
+	err = json.NewEncoder(w).Encode(deck)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+
+// ApiPostDeck is a route to create a deck.
+// @Summary Create one deck
+// @Tags deck
+// @Accept json
+// @Produce json
+// @Param deck body InputDeck true "Deck"
+// @Success 200 {string} string
+// @Failure 400 {string} string
+// @Router /deck/ [post]
+func (app *App) ApiPostDeck(w http.ResponseWriter, r *http.Request, _ httprouter.Params) error {
+	tx, err := app.DB.Beginx()
+	if err != nil {
+		return err
+	}
+
+	var deck InputDeck
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(reqBody, &deck)
+	if err != nil {
+		return err
+	}
+
+	err = CreateDeck(tx, deck)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	err = json.NewEncoder(w).Encode(Message{"successful"})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ApiCalibrateDeck is a route to calibrate a deck.
+// @Summary Calibrate a deck
+// @Tags deck
+// @Accept json
+// @Produce json
+// @Param name path string true "Deck name"
+// @Param x path number true "X coordinate"
+// @Param y path number true "Y coordinate"
+// @Param z path number true "Z coordinate"
+// @Success 200 {string} string
+// @Failure 400 {string} string
+// @Router /deck/{name}/{x}/{y}/{z} [post]
+func (app *App) ApiCalibrateDeck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
+	tx, err := app.DB.Beginx()
+	if err != nil {
+		return err
+	}
+
+	x, err := strconv.ParseFloat(ps.ByName("x"), 64)
+	if err != nil {
+		return err
+	}
+	y, err := strconv.ParseFloat(ps.ByName("y"), 64)
+	if err != nil {
+		return err
+	}
+	z, err := strconv.ParseFloat(ps.ByName("z"), 64)
+	if err != nil {
+		return err
+	}
+
+	err = SetDeckCalibration(tx, ps.ByName("name"), x, y, z)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	err = json.NewEncoder(w).Encode(Message{"successful"})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ApiDeleteDeck is a route to delete a deck.
+// @Summary Delete one deck
+// @Tags deck
+// @Produce json
+// @Param name path string true "Deck name"
+// @Success 200 {string} string
+// @Failure 400 {string} string
+// @Router /deck/{name} [delete]
+func (app *App) ApiDeleteDeck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
+	tx, err := app.DB.Beginx()
+	if err != nil {
+		return err
+	}
+
+	err = DeleteDeck(tx, ps.ByName("name"))
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	err = json.NewEncoder(w).Encode(Message{"successful"})
+	if err != nil {
+		return err
+	}
+	return nil
 }
