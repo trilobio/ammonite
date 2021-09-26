@@ -1,0 +1,20 @@
+basePath: /api/
+info:
+  contact: {}
+  description: The Ammonite API interface.
+  title: Ammonite API
+  version: "0.1"
+paths:
+  /ping:
+    get:
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: A pingable endpoint
+      tags:
+      - dev
+swagger: "2.0"

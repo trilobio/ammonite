@@ -1,0 +1,31 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "The Ammonite API interface.",
+        "title": "Ammonite API",
+        "contact": {},
+        "version": "0.1"
+    },
+    "basePath": "/api/",
+    "paths": {
+        "/ping": {
+            "get": {
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "dev"
+                ],
+                "summary": "A pingable endpoint",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
