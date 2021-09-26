@@ -195,19 +195,23 @@ func DeleteDeck(tx *sqlx.Tx, name string) error {
 
 ******************************************************************************/
 
-type CommandXyz struct {
-	Command string  `json:"command"`
-	X       float64 `json:"x"`
-	Y       float64 `json:"y"`
-	Z       float64 `json:"z"`
-	Qw      float64 `json:"qw" db:"qw"`
-	Qx      float64 `json:"qx" db:"qx"`
-	Qy      float64 `json:"qy" db:"qy"`
-	Qz      float64 `json:"qz" db:"qz"`
+type CommandInput interface {
+	Command() string
 }
 
+type CommandXyz struct {
+	X  float64 `json:"x"`
+	Y  float64 `json:"y"`
+	Z  float64 `json:"z"`
+	Qw float64 `json:"qw" db:"qw"`
+	Qx float64 `json:"qx" db:"qx"`
+	Qy float64 `json:"qy" db:"qy"`
+	Qz float64 `json:"qz" db:"qz"`
+}
+
+func (c CommandXyz) Command() string { return "movexyz" }
+
 type CommandMove struct {
-	Command         string  `json:"command"`
 	Deck            string  `json:"name"`
 	Location        string  `json:"location"`
 	LabwareName     string  `json:"labware_name"`
@@ -215,50 +219,40 @@ type CommandMove struct {
 	DepthFromBottom float64 `json:"depth_from_bottom"`
 }
 
+func (c CommandMove) Command() string { return "move" }
+
 type Command struct {
 	Command  string
 	Pose     kinematics.Pose
 	WaitTime int // Milliseconds
 }
 
-func ExecuteProtocol(db *sqlx.DB, arm ar3.Arm, protocol []byte) error {
-	tx := db.MustBegin()
-	err := arm.MoveJointRadians(5, 10, 10, 10, 10, 1, 1, 1, 1, 1, 1, 0)
+func ExecuteProtocol(db *sqlx.DB, arm ar3.Arm, protocol []CommandInput) error {
+	var err error
+
+	// This move command should be removed.
+	err = arm.MoveJointRadians(5, 10, 10, 10, 10, 1, 1, 1, 1, 1, 1, 0)
 	if err != nil {
 		return err
 	}
-	var steps []json.RawMessage
-	if err := json.Unmarshal(protocol, &steps); err != nil {
-		return err
-	}
-	var commands []Command
-	for i, step := range steps {
-		stepMap := make(map[string]interface{})
-		err := json.Unmarshal(step, &stepMap)
-		if err != nil {
-			return err
-		}
-		if _, ok := stepMap["command"]; !ok {
-			return fmt.Errorf("command not found in step %d of command", i)
-		}
+	// Above should be removed when possible.
 
+	tx := db.MustBegin()
+	var commands []Command
+	for _, step := range protocol {
 		// Run each different possible command
-		command := stepMap["command"]
+		command := step.Command()
 		switch command {
 		case "movexyz":
 			var movexyz CommandXyz
-			err := json.Unmarshal(step, &movexyz)
-			if err != nil {
-				return err
-			}
+			movexyz = step.(CommandXyz)
+
 			// Move arm to XYZ position
 			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: movexyz.X, Y: movexyz.Y, Z: movexyz.Z}, Rotation: kinematics.Quaternion{W: movexyz.Qw, X: movexyz.Qx, Y: movexyz.Qy, Z: movexyz.Qz}}, 0})
 		case "move":
 			var move CommandMove
-			err := json.Unmarshal(step, &move)
-			if err != nil {
-				return err
-			}
+			move = step.(CommandMove)
+
 			// Get deck calibration
 			deck, err := GetDeck(tx, move.Deck)
 			if err != nil {
@@ -304,6 +298,8 @@ func ExecuteProtocol(db *sqlx.DB, arm ar3.Arm, protocol []byte) error {
 			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellTop}, Rotation: rotation}, 0})
 			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellBottom}, Rotation: rotation}, 0})
 			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellTop}, Rotation: rotation}, 0})
+		default:
+			return fmt.Errorf("Command not found. Only valid commands are `move, wait, movexyz`, got: %s", command)
 		}
 	}
 	// Exit our transaction

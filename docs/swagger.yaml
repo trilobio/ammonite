@@ -52,6 +52,14 @@ definitions:
     properties:
       name:
         type: string
+      qw:
+        type: number
+      qx:
+        type: number
+      qy:
+        type: number
+      qz:
+        type: number
       x:
         type: number
       "y":
@@ -328,4 +336,21 @@ paths:
       summary: A pingable endpoint
       tags:
       - dev
+  /protocol:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: commandInput
+        in: body
+        name: collection
+        required: true
+        schema:
+          items: {}
+          type: array
+      produces:
+      - application/json
+      summary: Run a protocol
+      tags:
+      - protocol
 swagger: "2.0"

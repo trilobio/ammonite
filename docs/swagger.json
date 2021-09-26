@@ -378,6 +378,32 @@
                     }
                 }
             }
+        },
+        "/protocol": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "protocol"
+                ],
+                "summary": "Run a protocol",
+                "parameters": [
+                    {
+                        "description": "commandInput",
+                        "name": "collection",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    }
+                ]
+            }
         }
     },
     "definitions": {
@@ -456,6 +482,18 @@
             "properties": {
                 "name": {
                     "type": "string"
+                },
+                "qw": {
+                    "type": "number"
+                },
+                "qx": {
+                    "type": "number"
+                },
+                "qy": {
+                    "type": "number"
+                },
+                "qz": {
+                    "type": "number"
                 },
                 "x": {
                     "type": "number"

@@ -192,3 +192,22 @@ func TestDeckApi(t *testing.T) {
 		t.Errorf("Unexpected response. Expected: " + success + "\nGot: " + resp.Body.String())
 	}
 }
+
+func TestProtocolApi(t *testing.T) {
+	// Create a new deck
+	var moves []CommandInput
+	moves = append(moves, CommandXyz{132, 158, 121, 0.8063737663657652, -0.575080903948282, -0.13494466363153904, 0.02886590702694046})
+	moves = append(moves, CommandXyz{132, 158, 141, 0.8063737663657652, -0.575080903948282, -0.13494466363153904, 0.02886590702694046}) // Move up by 20
+	moves = append(moves, CommandMove{Deck: "deck", Location: "1", LabwareName: "nest_96_wellplate_100ul_pcr_full_skirt", Address: "A1", DepthFromBottom: 1})
+	moves = append(moves, CommandMove{Deck: "deck", Location: "1", LabwareName: "nest_96_wellplate_100ul_pcr_full_skirt", Address: "B1", DepthFromBottom: 1})
+
+	m, _ := json.Marshal(moves)
+	req := httptest.NewRequest("POST", "/api/protocols", bytes.NewReader(m))
+	resp := httptest.NewRecorder()
+	app.Router.ServeHTTP(resp, req)
+
+	success := `{"message":"successful"}`
+	if strings.TrimSpace(resp.Body.String()) != success {
+		t.Errorf("Unexpected response. Expected: " + success + "\nGot: " + resp.Body.String())
+	}
+}

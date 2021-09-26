@@ -86,6 +86,9 @@ func initializeApp(db *sqlx.DB) App {
 	app.Router.POST("/api/decks/calibrate/:name/:x/:y/:z/:qw/:qx/:qy/:qz", rootHandler(app.ApiCalibrateDeck).ServeHTTP)
 	app.Router.DELETE("/api/decks/:name", rootHandler(app.ApiDeleteDeck).ServeHTTP)
 
+	// Protocol
+	app.Router.POST("/api/protocols", rootHandler(app.ApiProtocol).ServeHTTP)
+
 	return app
 }
 
@@ -527,3 +530,51 @@ func (app *App) ApiDeleteDeck(w http.ResponseWriter, r *http.Request, ps httprou
                                 Protocol
 
 ******************************************************************************/
+
+// ApiProtocol runs a protocol
+// @Summary Run a protocol
+// @Tags protocol
+// @Accept json
+// @Produce json
+// @Param collection body []CommandInput true "commandInput"
+// @Success 200 {string} string
+// @Failure 400 {string} string
+// @Router /protocol [post]
+func (app *App) ApiProtocol(w http.ResponseWriter, r *http.Request, _ httprouter.Params) error {
+	var commands []interface{}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(reqBody, &commands)
+	if err != nil {
+		fmt.Println("ah")
+		return err
+	}
+
+	var commandInputs []CommandInput
+	for _, command := range commands {
+		var newCommand CommandInput
+		var ok bool
+		newCommand, ok = command.(CommandXyz)
+		if ok {
+			commandInputs = append(commandInputs, newCommand)
+		}
+
+		newCommand, ok = command.(CommandMove)
+		if ok {
+			commandInputs = append(commandInputs, newCommand)
+		}
+	}
+
+	err = ExecuteProtocol(db, app.Arm, commandInputs)
+	if err != nil {
+		return err
+	}
+
+	err = json.NewEncoder(w).Encode(Message{"successful"})
+	if err != nil {
+		return err
+	}
+	return nil
+}
