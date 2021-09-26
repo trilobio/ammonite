@@ -10,6 +10,14 @@ definitions:
         type: array
       name:
         type: string
+      qw:
+        type: number
+      qx:
+        type: number
+      qy:
+        type: number
+      qz:
+        type: number
       x:
         type: number
       "y":
@@ -77,7 +85,25 @@ info:
   title: Ammonite API
   version: "0.1"
 paths:
-  /deck/:
+  /decks:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.Deck'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+      summary: Get all decks
+      tags:
+      - deck
+  /decks/:
     post:
       consumes:
       - application/json
@@ -102,7 +128,7 @@ paths:
       summary: Create one deck
       tags:
       - deck
-  /deck/{name}:
+  /decks/{name}:
     delete:
       parameters:
       - description: Deck name
@@ -145,7 +171,7 @@ paths:
       summary: Get one deck
       tags:
       - deck
-  /deck/{name}/{x}/{y}/{z}:
+  /decks/calibrate/{name}/{x}/{y}/{z}/{qw}/{qx}/{qy}/{qz}:
     post:
       consumes:
       - application/json
@@ -170,6 +196,26 @@ paths:
         name: z
         required: true
         type: number
+      - description: Qw coordinate
+        in: path
+        name: qw
+        required: true
+        type: number
+      - description: Qx coordinate
+        in: path
+        name: qx
+        required: true
+        type: number
+      - description: Qy coordinate
+        in: path
+        name: qy
+        required: true
+        type: number
+      - description: Qz coordinate
+        in: path
+        name: qz
+        required: true
+        type: number
       produces:
       - application/json
       responses:
@@ -184,7 +230,7 @@ paths:
       summary: Calibrate a deck
       tags:
       - deck
-  /decks:
+  /labwares:
     get:
       produces:
       - application/json
@@ -193,16 +239,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/main.Deck'
+              $ref: '#/definitions/main.Labware'
             type: array
         "400":
           description: Bad Request
           schema:
             type: string
-      summary: Get all decks
+      summary: Get all labwares
       tags:
-      - deck
-  /labware/:
+      - labware
+  /labwares/:
     post:
       consumes:
       - application/json
@@ -227,7 +273,7 @@ paths:
       summary: Create one labware
       tags:
       - labware
-  /labware/{name}:
+  /labwares/{name}:
     delete:
       parameters:
       - description: Labware name
@@ -268,24 +314,6 @@ paths:
           schema:
             type: string
       summary: Get one labware
-      tags:
-      - labware
-  /labwares:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/main.Labware'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            type: string
-      summary: Get all labwares
       tags:
       - labware
   /ping:

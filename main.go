@@ -75,16 +75,16 @@ func initializeApp(db *sqlx.DB) App {
 
 	// Labwares
 	app.Router.GET("/api/labwares", rootHandler(app.ApiGetLabwares).ServeHTTP)
-	app.Router.GET("/api/labware/:name", rootHandler(app.ApiGetLabware).ServeHTTP)
-	app.Router.POST("/api/labware", rootHandler(app.ApiPostLabware).ServeHTTP)
-	app.Router.DELETE("/api/labware/:name", rootHandler(app.ApiDeleteLabware).ServeHTTP)
+	app.Router.GET("/api/labwares/:name", rootHandler(app.ApiGetLabware).ServeHTTP)
+	app.Router.POST("/api/labwares", rootHandler(app.ApiPostLabware).ServeHTTP)
+	app.Router.DELETE("/api/labwares/:name", rootHandler(app.ApiDeleteLabware).ServeHTTP)
 
 	// Decks
 	app.Router.GET("/api/decks", rootHandler(app.ApiGetDecks).ServeHTTP)
-	app.Router.GET("/api/deck/:name", rootHandler(app.ApiGetDeck).ServeHTTP)
-	app.Router.POST("/api/deck", rootHandler(app.ApiPostDeck).ServeHTTP)
-	app.Router.POST("/api/deck/calibrate/:name/:x/:y/:z/:qw/:qx/:qy/:qz", rootHandler(app.ApiCalibrateDeck).ServeHTTP)
-	app.Router.DELETE("/api/deck/:name", rootHandler(app.ApiDeleteDeck).ServeHTTP)
+	app.Router.GET("/api/decks/:name", rootHandler(app.ApiGetDeck).ServeHTTP)
+	app.Router.POST("/api/decks", rootHandler(app.ApiPostDeck).ServeHTTP)
+	app.Router.POST("/api/decks/calibrate/:name/:x/:y/:z/:qw/:qx/:qy/:qz", rootHandler(app.ApiCalibrateDeck).ServeHTTP)
+	app.Router.DELETE("/api/decks/:name", rootHandler(app.ApiDeleteDeck).ServeHTTP)
 
 	return app
 }
@@ -213,7 +213,7 @@ func (app *App) ApiGetLabwares(w http.ResponseWriter, r *http.Request, _ httprou
 // @Param name path string true "Labware name"
 // @Success 200 {object} Labware
 // @Failure 400 {string} string
-// @Router /labware/{name} [get]
+// @Router /labwares/{name} [get]
 func (app *App) ApiGetLabware(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
 	tx, err := app.DB.Beginx()
 	if err != nil {
@@ -246,7 +246,7 @@ func (app *App) ApiGetLabware(w http.ResponseWriter, r *http.Request, ps httprou
 // @Param labware body Labware true "Labware"
 // @Success 200 {string} string
 // @Failure 400 {string} string
-// @Router /labware/ [post]
+// @Router /labwares/ [post]
 func (app *App) ApiPostLabware(w http.ResponseWriter, r *http.Request, _ httprouter.Params) error {
 	tx, err := app.DB.Beginx()
 	if err != nil {
@@ -287,7 +287,7 @@ func (app *App) ApiPostLabware(w http.ResponseWriter, r *http.Request, _ httprou
 // @Param name path string true "Labware name"
 // @Success 200 {string} string
 // @Failure 400 {string} string
-// @Router /labware/{name} [delete]
+// @Router /labwares/{name} [delete]
 func (app *App) ApiDeleteLabware(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
 	tx, err := app.DB.Beginx()
 	if err != nil {
@@ -355,7 +355,7 @@ func (app *App) ApiGetDecks(w http.ResponseWriter, r *http.Request, _ httprouter
 // @Param name path string true "Deck name"
 // @Success 200 {object} Deck
 // @Failure 400 {string} string
-// @Router /deck/{name} [get]
+// @Router /decks/{name} [get]
 func (app *App) ApiGetDeck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
 	tx, err := app.DB.Beginx()
 	if err != nil {
@@ -388,7 +388,7 @@ func (app *App) ApiGetDeck(w http.ResponseWriter, r *http.Request, ps httprouter
 // @Param deck body InputDeck true "Deck"
 // @Success 200 {string} string
 // @Failure 400 {string} string
-// @Router /deck/ [post]
+// @Router /decks/ [post]
 func (app *App) ApiPostDeck(w http.ResponseWriter, r *http.Request, _ httprouter.Params) error {
 	tx, err := app.DB.Beginx()
 	if err != nil {
@@ -437,7 +437,7 @@ func (app *App) ApiPostDeck(w http.ResponseWriter, r *http.Request, _ httprouter
 // @Param qz path number true "Qz coordinate"
 // @Success 200 {string} string
 // @Failure 400 {string} string
-// @Router /deck/calibrate/{name}/{x}/{y}/{z}/{qw}/{qx}/{qy}/{qz} [post]
+// @Router /decks/calibrate/{name}/{x}/{y}/{z}/{qw}/{qx}/{qy}/{qz} [post]
 func (app *App) ApiCalibrateDeck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
 	tx, err := app.DB.Beginx()
 	if err != nil {
@@ -498,7 +498,7 @@ func (app *App) ApiCalibrateDeck(w http.ResponseWriter, r *http.Request, ps http
 // @Param name path string true "Deck name"
 // @Success 200 {string} string
 // @Failure 400 {string} string
-// @Router /deck/{name} [delete]
+// @Router /decks/{name} [delete]
 func (app *App) ApiDeleteDeck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
 	tx, err := app.DB.Beginx()
 	if err != nil {

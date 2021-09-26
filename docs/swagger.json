@@ -8,7 +8,35 @@
     },
     "basePath": "/api/",
     "paths": {
-        "/deck/": {
+        "/decks": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "deck"
+                ],
+                "summary": "Get all decks",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/main.Deck"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/decks/": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -47,7 +75,93 @@
                 }
             }
         },
-        "/deck/{name}": {
+        "/decks/calibrate/{name}/{x}/{y}/{z}/{qw}/{qx}/{qy}/{qz}": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "deck"
+                ],
+                "summary": "Calibrate a deck",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Deck name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "X coordinate",
+                        "name": "x",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Y coordinate",
+                        "name": "y",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Z coordinate",
+                        "name": "z",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Qw coordinate",
+                        "name": "qw",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Qx coordinate",
+                        "name": "qx",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Qy coordinate",
+                        "name": "qy",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Qz coordinate",
+                        "name": "qz",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/decks/{name}": {
             "get": {
                 "produces": [
                     "application/json"
@@ -113,80 +227,22 @@
                 }
             }
         },
-        "/deck/{name}/{x}/{y}/{z}": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "deck"
-                ],
-                "summary": "Calibrate a deck",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Deck name",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "number",
-                        "description": "X coordinate",
-                        "name": "x",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "number",
-                        "description": "Y coordinate",
-                        "name": "y",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "number",
-                        "description": "Z coordinate",
-                        "name": "z",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/decks": {
+        "/labwares": {
             "get": {
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "deck"
+                    "labware"
                 ],
-                "summary": "Get all decks",
+                "summary": "Get all labwares",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/main.Deck"
+                                "$ref": "#/definitions/main.Labware"
                             }
                         }
                     },
@@ -199,7 +255,7 @@
                 }
             }
         },
-        "/labware/": {
+        "/labwares/": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -238,7 +294,7 @@
                 }
             }
         },
-        "/labware/{name}": {
+        "/labwares/{name}": {
             "get": {
                 "produces": [
                     "application/json"
@@ -304,34 +360,6 @@
                 }
             }
         },
-        "/labwares": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "labware"
-                ],
-                "summary": "Get all labwares",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/main.Labware"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/ping": {
             "get": {
                 "produces": [
@@ -367,6 +395,18 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "qw": {
+                    "type": "number"
+                },
+                "qx": {
+                    "type": "number"
+                },
+                "qy": {
+                    "type": "number"
+                },
+                "qz": {
+                    "type": "number"
                 },
                 "x": {
                     "type": "number"
