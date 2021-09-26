@@ -104,6 +104,10 @@ type Deck struct {
 	X          float64    `json:"x" db:"x"`
 	Y          float64    `json:"y" db:"y"`
 	Z          float64    `json:"z" db:"z"`
+	Qw         float64    `json:"qw" db:"qw"`
+	Qx         float64    `json:"qx" db:"qx"`
+	Qy         float64    `json:"qy" db:"qy"`
+	Qz         float64    `json:"qz" db:"qz"`
 	Locations  []Location `json:"locations"`
 }
 
@@ -162,8 +166,8 @@ func CreateDeck(tx *sqlx.Tx, deck InputDeck) error {
 	return nil
 }
 
-func SetDeckCalibration(tx *sqlx.Tx, name string, x float64, y float64, z float64) error {
-	_, err := tx.Exec("UPDATE deck SET calibrated = ?, x = ?, y = ?, z = ? WHERE name = ?", true, x, y, z, name)
+func SetDeckCalibration(tx *sqlx.Tx, name string, x float64, y float64, z float64, qw float64, qx float64, qy float64, qz float64) error {
+	_, err := tx.Exec("UPDATE deck SET calibrated = ?, x = ?, y = ?, z = ?, qw = ?, qx = ?, qy = ?, qz = ? WHERE name = ?", true, x, y, z, qw, qx, qy, qz, name)
 	if err != nil {
 		return err
 	}
@@ -189,6 +193,10 @@ type CommandXyz struct {
 	X       float64 `json:"x"`
 	Y       float64 `json:"y"`
 	Z       float64 `json:"z"`
+	Qw      float64 `json:"qw" db:"qw"`
+	Qx      float64 `json:"qx" db:"qx"`
+	Qy      float64 `json:"qy" db:"qy"`
+	Qz      float64 `json:"qz" db:"qz"`
 }
 
 type CommandMove struct {
@@ -205,8 +213,6 @@ type Command struct {
 	Pose     kinematics.Pose
 	WaitTime int // Milliseconds
 }
-
-var defaultQuaternion kinematics.Quaternion = kinematics.Quaternion{W: 0.8063737663657652, X: -0.575080903948282, Y: -0.13494466363153904, Z: 0.02886590702694046}
 
 func ExecuteProtocol(db *sqlx.DB, arm ar3.Arm, protocol []byte) error {
 	tx := db.MustBegin()
@@ -239,7 +245,7 @@ func ExecuteProtocol(db *sqlx.DB, arm ar3.Arm, protocol []byte) error {
 				return err
 			}
 			// Move arm to XYZ position
-			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: movexyz.X, Y: movexyz.Y, Z: movexyz.Z}, Rotation: defaultQuaternion}, 0})
+			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: movexyz.X, Y: movexyz.Y, Z: movexyz.Z}, Rotation: kinematics.Quaternion{W: movexyz.Qw, X: movexyz.Qx, Y: movexyz.Qy, Z: movexyz.Qz}}, 0})
 		case "move":
 			var move CommandMove
 			err := json.Unmarshal(step, &move)
@@ -286,9 +292,11 @@ func ExecuteProtocol(db *sqlx.DB, arm ar3.Arm, protocol []byte) error {
 			wellTop := locationOffsetZ + targetWell.Z + labware.ZDimension + 5
 			wellBottom := locationOffsetZ + targetWell.Z + move.DepthFromBottom
 
-			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellTop}, Rotation: defaultQuaternion}, 0})
-			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellBottom}, Rotation: defaultQuaternion}, 0})
-			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellTop}, Rotation: defaultQuaternion}, 0})
+			rotation := kinematics.Quaternion{W: deck.Qw, X: deck.Qx, Y: deck.Qy, Z: deck.Qz}
+
+			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellTop}, Rotation: rotation}, 0})
+			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellBottom}, Rotation: rotation}, 0})
+			commands = append(commands, Command{"move", kinematics.Pose{Position: kinematics.Position{X: wellOffsetX, Y: wellOffsetY, Z: wellTop}, Rotation: rotation}, 0})
 		}
 	}
 	// Exit our transaction
@@ -362,7 +370,11 @@ CREATE TABLE IF NOT EXISTS deck (
 	calibrated BOOLEAN DEFAULT false,
         x REAL NOT NULL DEFAULT 0,
         y REAL NOT NULL DEFAULT 0,
-        z REAL NOT NULL DEFAULT 0
+        z REAL NOT NULL DEFAULT 0,
+	qw REAL NOT NULL DEFAULT 0,
+	qx REAL NOT NULL DEFAULT 0,
+	qy REAL NOT NULL DEFAULT 0,
+	qz REAL NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS location (
@@ -389,6 +401,7 @@ CREATE TABLE IF NOT EXISTS lock (
     active BOOL NOT NULL DEFAULT false,
     locked_by INTEGER REFERENCES activity_log(id)
 );
+
 INSERT OR IGNORE INTO lock(id) VALUES (1);
 UPDATE lock SET active = 0, locked_by = NULL WHERE id=1;
 `

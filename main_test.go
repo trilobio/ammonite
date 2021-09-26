@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	"io/ioutil"
 	"log"
@@ -179,7 +180,9 @@ func TestDeckApi(t *testing.T) {
 	}
 
 	// Calibrate deck
-	req = httptest.NewRequest("POST", "/api/deck/calibrate/defaultDeck/10/10/10", nil)
+	qw, qx, qy, qz := 0.8063737663657652, -0.575080903948282, -0.13494466363153904, 0.02886590702694046
+	calibrateUrl := fmt.Sprintf("/api/deck/calibrate/defaultDeck/10/10/10/%f/%f/%f/%f", qw, qx, qy, qz)
+	req = httptest.NewRequest("POST", calibrateUrl, nil)
 	resp = httptest.NewRecorder()
 	app.Router.ServeHTTP(resp, req)
 	if strings.TrimSpace(resp.Body.String()) != success {

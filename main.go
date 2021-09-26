@@ -83,7 +83,7 @@ func initializeApp(db *sqlx.DB) App {
 	app.Router.GET("/api/decks", rootHandler(app.ApiGetDecks).ServeHTTP)
 	app.Router.GET("/api/deck/:name", rootHandler(app.ApiGetDeck).ServeHTTP)
 	app.Router.POST("/api/deck", rootHandler(app.ApiPostDeck).ServeHTTP)
-	app.Router.POST("/api/deck/calibrate/:name/:x/:y/:z", rootHandler(app.ApiCalibrateDeck).ServeHTTP)
+	app.Router.POST("/api/deck/calibrate/:name/:x/:y/:z/:qw/:qx/:qy/:qz", rootHandler(app.ApiCalibrateDeck).ServeHTTP)
 	app.Router.DELETE("/api/deck/:name", rootHandler(app.ApiDeleteDeck).ServeHTTP)
 
 	return app
@@ -431,9 +431,13 @@ func (app *App) ApiPostDeck(w http.ResponseWriter, r *http.Request, _ httprouter
 // @Param x path number true "X coordinate"
 // @Param y path number true "Y coordinate"
 // @Param z path number true "Z coordinate"
+// @Param qw path number true "Qw coordinate"
+// @Param qx path number true "Qx coordinate"
+// @Param qy path number true "Qy coordinate"
+// @Param qz path number true "Qz coordinate"
 // @Success 200 {string} string
 // @Failure 400 {string} string
-// @Router /deck/{name}/{x}/{y}/{z} [post]
+// @Router /deck/calibrate/{name}/{x}/{y}/{z}/{qw}/{qx}/{qy}/{qz} [post]
 func (app *App) ApiCalibrateDeck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
 	tx, err := app.DB.Beginx()
 	if err != nil {
@@ -453,7 +457,24 @@ func (app *App) ApiCalibrateDeck(w http.ResponseWriter, r *http.Request, ps http
 		return err
 	}
 
-	err = SetDeckCalibration(tx, ps.ByName("name"), x, y, z)
+	qw, err := strconv.ParseFloat(ps.ByName("qw"), 64)
+	if err != nil {
+		return err
+	}
+	qx, err := strconv.ParseFloat(ps.ByName("qx"), 64)
+	if err != nil {
+		return err
+	}
+	qy, err := strconv.ParseFloat(ps.ByName("qy"), 64)
+	if err != nil {
+		return err
+	}
+	qz, err := strconv.ParseFloat(ps.ByName("qz"), 64)
+	if err != nil {
+		return err
+	}
+
+	err = SetDeckCalibration(tx, ps.ByName("name"), x, y, z, qw, qx, qy, qz)
 	if err != nil {
 		return err
 	}
@@ -500,3 +521,9 @@ func (app *App) ApiDeleteDeck(w http.ResponseWriter, r *http.Request, ps httprou
 	}
 	return nil
 }
+
+/******************************************************************************
+
+                                Protocol
+
+******************************************************************************/
