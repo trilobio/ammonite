@@ -1,11 +1,14 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/trilobio/ar3"
 	"github.com/trilobio/kinematics"
+	"io/fs"
+	"io/ioutil"
 )
 
 /******************************************************************************
@@ -337,12 +340,88 @@ func executeProtocolWithCache(arm ar3.Arm, commands []Command) error {
 
 /******************************************************************************
 
+                                Defaults
+
+******************************************************************************/
+
+type OpentronsParameters struct {
+	LoadName string `json:"loadName"`
+}
+
+type OpentronsDimensions struct {
+	ZDimension float64 `json:"zDimension"`
+}
+
+type OpentronsLabware struct {
+	Dimensions OpentronsDimensions `json:"dimensions"`
+	Parameters OpentronsParameters `json:"parameters"`
+	Wells      map[string]Well     `json:"wells"`
+}
+
+func opentronsLabwareToLabware(ol OpentronsLabware) Labware {
+	var wells []Well
+	for address, well := range ol.Wells {
+		newWell := well
+		newWell.Address = address
+		wells = append(wells, newWell)
+	}
+	return Labware{Name: ol.Parameters.LoadName, ZDimension: ol.Dimensions.ZDimension, Wells: wells}
+}
+
+//go:embed data/**/*
+var content embed.FS
+
+func defaultLabware() ([]Labware, error) {
+	var labwares []Labware
+	matches, err := fs.Glob(content, "data/**/*")
+	if err != nil {
+		return labwares, err
+	}
+	for _, match := range matches {
+		file, err := content.Open(match)
+		if err != nil {
+			return labwares, err
+		}
+		fileBytes, err := ioutil.ReadAll(file)
+		if err != nil {
+			return labwares, err
+		}
+
+		var opentronsLabware OpentronsLabware
+		err = json.Unmarshal(fileBytes, &opentronsLabware)
+		if err != nil {
+			return labwares, err
+		}
+
+		labwares = append(labwares, opentronsLabwareToLabware(opentronsLabware))
+	}
+	return labwares, nil
+}
+
+/******************************************************************************
+
                                Database
 
 ******************************************************************************/
 
 func CreateDatabase(db *sqlx.DB) error {
 	_, err := db.Exec(Schema)
+	if err != nil {
+		return err
+	}
+	// Add in default labwares
+	defaultLabwares, err := defaultLabware()
+	if err != nil {
+		return err
+	}
+	tx := db.MustBegin()
+	for _, labware := range defaultLabwares {
+		err = CreateLabware(tx, labware)
+		if err != nil {
+			return err
+		}
+	}
+	err = tx.Commit()
 	if err != nil {
 		return err
 	}

@@ -29,13 +29,8 @@ func TestMain(m *testing.M) {
 	app = initializeApp(db)
 
 	tx := db.MustBegin()
-	nestPlate := Labware{"nest_96_wellplate_100ul_pcr_full_skirt", 10, []Well{Well{Address: "A1", Depth: 14.78, Diameter: 5.34, X: 14.38, Y: 74.24, Z: 0.92}, Well{Address: "B1", Depth: 14.78, Diameter: 5.34, X: 14.38, Y: 65.24, Z: 0.92}}}
 	deck := InputDeck{Name: "deck", Locations: []Location{Location{Name: "1", X: 1, Y: 1, Z: 1}}}
 
-	err = CreateLabware(tx, nestPlate)
-	if err != nil {
-		log.Fatalf("Failed to CreateLabware: %s", err)
-	}
 	err = CreateDeck(tx, deck)
 	if err != nil {
 		log.Fatalf("Failed to CreateDeck: %s", err)
