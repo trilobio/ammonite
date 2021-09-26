@@ -116,6 +116,10 @@ type Location struct {
 	X    float64 `json:"x" db:"x"`
 	Y    float64 `json:"y" db:"y"`
 	Z    float64 `json:"z" db:"z"`
+	Qw   float64 `json:"qw" db:"qw"`
+	Qx   float64 `json:"qx" db:"qx"`
+	Qy   float64 `json:"qy" db:"qy"`
+	Qz   float64 `json:"qz" db:"qz"`
 }
 
 func GetDecks(tx *sqlx.Tx) ([]Deck, error) {
@@ -158,7 +162,7 @@ func CreateDeck(tx *sqlx.Tx, deck InputDeck) error {
 		return err
 	}
 	for _, location := range deck.Locations {
-		_, err := tx.Exec("INSERT INTO location(deck, name, x, y, z) VALUES (?, ?, ?, ?, ?)", deck.Name, location.Name, location.X, location.Y, location.Z)
+		_, err := tx.Exec("INSERT INTO location(deck, name, x, y, z, qw, qx, qy, qz) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", deck.Name, location.Name, location.X, location.Y, location.Z, location.Qw, location.Qx, location.Qy, location.Qz)
 		if err != nil {
 			return err
 		}
@@ -382,7 +386,11 @@ CREATE TABLE IF NOT EXISTS location (
 	deck TEXT NOT NULL REFERENCES deck(name) ON DELETE CASCADE,
 	x REAL NOT NULL,
         y REAL NOT NULL,
-        z REAL NOT NULL
+        z REAL NOT NULL,
+	qw REAL NOT NULL,
+        qx REAL NOT NULL,
+        qy REAL NOT NULL,
+        qz REAL NOT NULL
 );
 
 -- Add activity log
