@@ -567,7 +567,7 @@ func (app *App) ApiProtocol(w http.ResponseWriter, r *http.Request, _ httprouter
 		}
 	}
 
-	err = ExecuteProtocol(db, app.Arm, commandInputs)
+	err = ExecuteProtocol(app.DB, app.Arm, commandInputs)
 	if err != nil {
 		return err
 	}
