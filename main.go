@@ -15,6 +15,7 @@ import (
 	"github.com/trilobio/ar3"
 	"io/ioutil"
 	"log"
+	"math"
 	_ "modernc.org/sqlite"
 	"net/http"
 	"os"
@@ -66,7 +67,16 @@ func initializeApp(db *sqlx.DB) App {
 	app.Router = httprouter.New()
 	app.DB = db
 	app.Arm = ar3.ConnectMock()
+	err := app.Arm.MoveJointRadians(25, 10, 10, 10, 10, 0, 0, math.Pi/4, 0, -math.Pi/4, 0, 0)
+	if err != nil {
+		fmt.Println("damn")
+		log.Fatalf("Failed to move arm with failure %s", err)
+	}
 	app.ArmMock = ar3.ConnectMock()
+	err = app.ArmMock.MoveJointRadians(25, 10, 10, 10, 10, 0, 0, math.Pi/4, 0, -math.Pi/4, 0, 0)
+	if err != nil {
+		log.Fatalf("Failed to move mock arm with failure %s", err)
+	}
 
 	// Basic routes
 	app.Router.GET("/api/ping", app.Ping)

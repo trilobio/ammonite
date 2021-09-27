@@ -229,14 +229,6 @@ type Command struct {
 
 func ExecuteProtocol(db *sqlx.DB, arm ar3.Arm, protocol []CommandInput) error {
 	var err error
-
-	// This move command should be removed.
-	err = arm.MoveJointRadians(5, 10, 10, 10, 10, 1, 1, 1, 1, 1, 1, 0)
-	if err != nil {
-		return err
-	}
-	// Above should be removed when possible.
-
 	tx := db.MustBegin()
 	var commands []Command
 	for _, step := range protocol {

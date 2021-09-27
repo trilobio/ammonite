@@ -43,8 +43,8 @@ github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 h1:OdAsTTz6O
 github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/ruudk/golang-pdf417 v0.0.0-20181029194003-1af4ab5afa58/go.mod h1:6lfFZQK844Gfx8o5WFuvpxWRwnSoipWe/p622j1v06w=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
-github.com/trilobio/ar3 v0.0.3 h1:D2f6Tr6dNJL37kirOWfRhd17iaYGGa40SQIjvSyHXZw=
-github.com/trilobio/ar3 v0.0.3/go.mod h1:lXDJTvkS2GbdKECU9URffiYWgLsRvaYyEQCqH/WZukI=
+github.com/trilobio/ar3 v0.0.4 h1:2/DJJCAB7R/G+xkJq5sjWEwyHxSA2LDDnkWfcdpx0eA=
+github.com/trilobio/ar3 v0.0.4/go.mod h1:lXDJTvkS2GbdKECU9URffiYWgLsRvaYyEQCqH/WZukI=
 github.com/trilobio/kinematics v0.0.4 h1:dZsnoZfvDgMiH4NGV/egh3jP9+fYDF/+u/SB8SHKEhw=
 github.com/trilobio/kinematics v0.0.4/go.mod h1:0EpKCp+o4ywixeeg/Eh4UHDnAKlKixEOr8ojzhnm/YY=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

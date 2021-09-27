@@ -121,7 +121,7 @@ func TestExecuteProtocol(t *testing.T) {
 	var err error
 	tx := db.MustBegin()
 	// Calibrate deck
-	err = SetDeckCalibration(tx, "deck", 132, 158, 121, 0.8063737663657652, -0.575080903948282, -0.13494466363153904, 0.02886590702694046)
+	err = SetDeckCalibration(tx, "deck", 257, 0, 307, 0.8063737663657652, -0.575080903948282, -0.13494466363153904, 0.02886590702694046)
 	if err != nil {
 		t.Errorf("Failed to SetDeckCalibration: %s", err)
 	}
@@ -133,8 +133,8 @@ func TestExecuteProtocol(t *testing.T) {
 
 	// Command MoveXYZ
 	var moves []CommandInput
-	moves = append(moves, CommandXyz{132, 158, 121, 0.8063737663657652, -0.575080903948282, -0.13494466363153904, 0.02886590702694046})
-	moves = append(moves, CommandXyz{132, 158, 141, 0.8063737663657652, -0.575080903948282, -0.13494466363153904, 0.02886590702694046}) // Move up by 20
+	moves = append(moves, CommandXyz{257, 0, 287, 0.8063737663657652, -0.575080903948282, -0.13494466363153904, 0.02886590702694046})
+	moves = append(moves, CommandXyz{257, 0, 307, 0.8063737663657652, -0.575080903948282, -0.13494466363153904, 0.02886590702694046}) // go up by 20
 	moves = append(moves, CommandMove{Deck: "deck", Location: "1", LabwareName: "nest_96_wellplate_100ul_pcr_full_skirt", Address: "A1", DepthFromBottom: 1})
 	moves = append(moves, CommandMove{Deck: "deck", Location: "1", LabwareName: "nest_96_wellplate_100ul_pcr_full_skirt", Address: "B1", DepthFromBottom: 1})
 
