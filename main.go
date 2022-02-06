@@ -9,17 +9,13 @@ package main
 import (
 	_ "embed"
 	"encoding/json"
-	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/julienschmidt/httprouter"
-	"github.com/trilobio/ar3"
 	"io/ioutil"
 	"log"
-	"math"
 	_ "modernc.org/sqlite"
 	"net/http"
 	"os"
-	"strconv"
 )
 
 /******************************************************************************
@@ -55,10 +51,8 @@ func main() {
 // App is a struct containing all information about the currently deployed
 // application, such as the router and database.
 type App struct {
-	Router  *httprouter.Router
-	DB      *sqlx.DB
-	ArmMock ar3.Arm
-	Arm     ar3.Arm
+	Router *httprouter.Router
+	DB     *sqlx.DB
 }
 
 // initalizeApp initializes an App for all endpoints to use.
@@ -66,35 +60,18 @@ func initializeApp(db *sqlx.DB) App {
 	var app App
 	app.Router = httprouter.New()
 	app.DB = db
-	app.Arm = ar3.ConnectMock()
-	err := app.Arm.MoveJointRadians(25, 10, 10, 10, 10, 0, 0, math.Pi/4, 0, -math.Pi/4, 0, 0)
-	if err != nil {
-		fmt.Println("damn")
-		log.Fatalf("Failed to move arm with failure %s", err)
-	}
-	app.ArmMock = ar3.ConnectMock()
-	err = app.ArmMock.MoveJointRadians(25, 10, 10, 10, 10, 0, 0, math.Pi/4, 0, -math.Pi/4, 0, 0)
-	if err != nil {
-		log.Fatalf("Failed to move mock arm with failure %s", err)
-	}
 
 	// Basic routes
 	app.Router.GET("/api/ping", app.Ping)
-	app.Router.GET("/swagger.json", app.SwaggerJSON)
-	app.Router.GET("/docs", app.SwaggerDocs)
+	app.Router.GET("/api/spec", app.OpenApiJSON)
+	app.Router.GET("/docs", app.Redocs)
+	app.Router.GET("/swagger_docs", app.SwaggerDocs)
 
 	// Labwares
 	app.Router.GET("/api/labwares", rootHandler(app.ApiGetLabwares).ServeHTTP)
 	app.Router.GET("/api/labwares/:name", rootHandler(app.ApiGetLabware).ServeHTTP)
 	app.Router.POST("/api/labwares", rootHandler(app.ApiPostLabware).ServeHTTP)
 	app.Router.DELETE("/api/labwares/:name", rootHandler(app.ApiDeleteLabware).ServeHTTP)
-
-	// Decks
-	app.Router.GET("/api/decks", rootHandler(app.ApiGetDecks).ServeHTTP)
-	app.Router.GET("/api/decks/:name", rootHandler(app.ApiGetDeck).ServeHTTP)
-	app.Router.POST("/api/decks", rootHandler(app.ApiPostDeck).ServeHTTP)
-	app.Router.POST("/api/decks/calibrate/:name/:x/:y/:z/:qw/:qx/:qy/:qz", rootHandler(app.ApiCalibrateDeck).ServeHTTP)
-	app.Router.DELETE("/api/decks/:name", rootHandler(app.ApiDeleteDeck).ServeHTTP)
 
 	// Protocol
 	app.Router.POST("/api/protocols", rootHandler(app.ApiProtocol).ServeHTTP)
@@ -139,47 +116,31 @@ func (app *App) Ping(w http.ResponseWriter, r *http.Request, _ httprouter.Params
 //go:embed docs/swagger.json
 var doc []byte
 
-// SwaggerJSON provides the swagger docs for this api in JSON format.
-func (app *App) SwaggerJSON(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+// OpenApiJSON provides the an OpenApi JSON spec.
+// @Summary OpenApi spec in JSON format
+// @Tags dev
+// @Produce json
+// @Success 200 {string} openapi
+// @Router /spec [get]
+func (app *App) OpenApiJSON(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	_, _ = w.Write(doc)
 }
 
+//go:embed html/redoc.html
+var redoc []byte
+
+// Redocs provides a human-friendly swagger ui interface.
+func (app *App) Redocs(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	_, _ = w.Write([]byte(redoc))
+}
+
+//go:embed html/swagger.html
+var swaggerdoc []byte
+
 // SwaggerDocs provides a human-friendly swagger ui interface.
 func (app *App) SwaggerDocs(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	// https://stackoverflow.com/questions/55733609/display-swagger-ui-on-flask-without-any-hookups
-	swaggerDoc := fmt.Sprintf(`<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <script src="//unpkg.com/swagger-ui-dist@3/swagger-ui-standalone-preset.js"></script>
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.22.1/swagger-ui-standalone-preset.js"></script> -->
-    <script src="//unpkg.com/swagger-ui-dist@3/swagger-ui-bundle.js"></script>
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.22.1/swagger-ui-bundle.js"></script> -->
-    <link rel="stylesheet" href="//unpkg.com/swagger-ui-dist@3/swagger-ui.css" />
-    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.22.1/swagger-ui.css" /> -->
-    <title>Swagger</title>
-</head>
-<body>
-    <div id="swagger-ui"></div>
-    <script>
-        window.onload = function() {
-          SwaggerUIBundle({
-	    spec: %s,
-            dom_id: '#swagger-ui',
-            presets: [
-              SwaggerUIBundle.presets.apis,
-              SwaggerUIStandalonePreset
-            ],
-            layout: "StandaloneLayout"
-          })
-        }
-    </script>
-</body>
-</html>`, string(doc))
-	_, _ = w.Write([]byte(swaggerDoc))
+	_, _ = w.Write([]byte(swaggerdoc))
 }
 
 /******************************************************************************
@@ -326,217 +287,6 @@ func (app *App) ApiDeleteLabware(w http.ResponseWriter, r *http.Request, ps http
 
 /******************************************************************************
 
-                                Deck
-
-******************************************************************************/
-
-// ApiGetDecks is a route for getting all decks.
-// @Summary Get all decks
-// @Tags deck
-// @Produce json
-// @Success 200 {object} []Deck
-// @Failure 400 {string} string
-// @Router /decks [get]
-func (app *App) ApiGetDecks(w http.ResponseWriter, r *http.Request, _ httprouter.Params) error {
-	tx, err := app.DB.Beginx()
-	if err != nil {
-		return err
-	}
-
-	decks, err := GetDecks(tx)
-	if err != nil {
-		return err
-	}
-
-	err = tx.Rollback()
-	if err != nil {
-		return err
-	}
-
-	err = json.NewEncoder(w).Encode(decks)
-	if err != nil {
-		return err
-	}
-	return nil
-
-}
-
-// ApiGetDeck is a route for getting a single deck.
-// @Summary Get one deck
-// @Tags deck
-// @Produce json
-// @Param name path string true "Deck name"
-// @Success 200 {object} Deck
-// @Failure 400 {string} string
-// @Router /decks/{name} [get]
-func (app *App) ApiGetDeck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
-	tx, err := app.DB.Beginx()
-	if err != nil {
-		return err
-	}
-
-	deck, err := GetDeck(tx, ps.ByName("name"))
-	if err != nil {
-		return err
-	}
-
-	err = tx.Rollback()
-	if err != nil {
-		return err
-	}
-
-	err = json.NewEncoder(w).Encode(deck)
-	if err != nil {
-		return err
-	}
-	return nil
-
-}
-
-// ApiPostDeck is a route to create a deck.
-// @Summary Create one deck
-// @Tags deck
-// @Accept json
-// @Produce json
-// @Param deck body InputDeck true "Deck"
-// @Success 200 {string} string
-// @Failure 400 {string} string
-// @Router /decks/ [post]
-func (app *App) ApiPostDeck(w http.ResponseWriter, r *http.Request, _ httprouter.Params) error {
-	tx, err := app.DB.Beginx()
-	if err != nil {
-		return err
-	}
-
-	var deck InputDeck
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(reqBody, &deck)
-	if err != nil {
-		return err
-	}
-
-	err = CreateDeck(tx, deck)
-	if err != nil {
-		return err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-
-	err = json.NewEncoder(w).Encode(Message{"successful"})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// ApiCalibrateDeck is a route to calibrate a deck.
-// @Summary Calibrate a deck
-// @Tags deck
-// @Accept json
-// @Produce json
-// @Param name path string true "Deck name"
-// @Param x path number true "X coordinate"
-// @Param y path number true "Y coordinate"
-// @Param z path number true "Z coordinate"
-// @Param qw path number true "Qw coordinate"
-// @Param qx path number true "Qx coordinate"
-// @Param qy path number true "Qy coordinate"
-// @Param qz path number true "Qz coordinate"
-// @Success 200 {string} string
-// @Failure 400 {string} string
-// @Router /decks/calibrate/{name}/{x}/{y}/{z}/{qw}/{qx}/{qy}/{qz} [post]
-func (app *App) ApiCalibrateDeck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
-	tx, err := app.DB.Beginx()
-	if err != nil {
-		return err
-	}
-
-	x, err := strconv.ParseFloat(ps.ByName("x"), 64)
-	if err != nil {
-		return err
-	}
-	y, err := strconv.ParseFloat(ps.ByName("y"), 64)
-	if err != nil {
-		return err
-	}
-	z, err := strconv.ParseFloat(ps.ByName("z"), 64)
-	if err != nil {
-		return err
-	}
-
-	qw, err := strconv.ParseFloat(ps.ByName("qw"), 64)
-	if err != nil {
-		return err
-	}
-	qx, err := strconv.ParseFloat(ps.ByName("qx"), 64)
-	if err != nil {
-		return err
-	}
-	qy, err := strconv.ParseFloat(ps.ByName("qy"), 64)
-	if err != nil {
-		return err
-	}
-	qz, err := strconv.ParseFloat(ps.ByName("qz"), 64)
-	if err != nil {
-		return err
-	}
-
-	err = SetDeckCalibration(tx, ps.ByName("name"), x, y, z, qw, qx, qy, qz)
-	if err != nil {
-		return err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-
-	err = json.NewEncoder(w).Encode(Message{"successful"})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// ApiDeleteDeck is a route to delete a deck.
-// @Summary Delete one deck
-// @Tags deck
-// @Produce json
-// @Param name path string true "Deck name"
-// @Success 200 {string} string
-// @Failure 400 {string} string
-// @Router /decks/{name} [delete]
-func (app *App) ApiDeleteDeck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) error {
-	tx, err := app.DB.Beginx()
-	if err != nil {
-		return err
-	}
-
-	err = DeleteDeck(tx, ps.ByName("name"))
-	if err != nil {
-		return err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-
-	err = json.NewEncoder(w).Encode(Message{"successful"})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-/******************************************************************************
-
                                 Protocol
 
 ******************************************************************************/
@@ -558,7 +308,6 @@ func (app *App) ApiProtocol(w http.ResponseWriter, r *http.Request, _ httprouter
 	}
 	err = json.Unmarshal(reqBody, &commands)
 	if err != nil {
-		fmt.Println("ah")
 		return err
 	}
 
@@ -577,7 +326,7 @@ func (app *App) ApiProtocol(w http.ResponseWriter, r *http.Request, _ httprouter
 		}
 	}
 
-	err = ExecuteProtocol(app.DB, app.Arm, commandInputs)
+	err = ExecuteProtocol(app.DB, commandInputs)
 	if err != nil {
 		return err
 	}

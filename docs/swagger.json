@@ -8,225 +8,6 @@
     },
     "basePath": "/api/",
     "paths": {
-        "/decks": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "deck"
-                ],
-                "summary": "Get all decks",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/main.Deck"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/decks/": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "deck"
-                ],
-                "summary": "Create one deck",
-                "parameters": [
-                    {
-                        "description": "Deck",
-                        "name": "deck",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/main.InputDeck"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/decks/calibrate/{name}/{x}/{y}/{z}/{qw}/{qx}/{qy}/{qz}": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "deck"
-                ],
-                "summary": "Calibrate a deck",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Deck name",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "number",
-                        "description": "X coordinate",
-                        "name": "x",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "number",
-                        "description": "Y coordinate",
-                        "name": "y",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "number",
-                        "description": "Z coordinate",
-                        "name": "z",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "number",
-                        "description": "Qw coordinate",
-                        "name": "qw",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "number",
-                        "description": "Qx coordinate",
-                        "name": "qx",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "number",
-                        "description": "Qy coordinate",
-                        "name": "qy",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "number",
-                        "description": "Qz coordinate",
-                        "name": "qz",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/decks/{name}": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "deck"
-                ],
-                "summary": "Get one deck",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Deck name",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/main.Deck"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "deck"
-                ],
-                "summary": "Delete one deck",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Deck name",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/labwares": {
             "get": {
                 "produces": [
@@ -402,63 +183,25 @@
                             "items": {}
                         }
                     }
-                ]
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
             }
         }
     },
     "definitions": {
-        "main.Deck": {
-            "type": "object",
-            "properties": {
-                "calibrated": {
-                    "type": "boolean"
-                },
-                "locations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/main.Location"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                },
-                "qw": {
-                    "type": "number"
-                },
-                "qx": {
-                    "type": "number"
-                },
-                "qy": {
-                    "type": "number"
-                },
-                "qz": {
-                    "type": "number"
-                },
-                "x": {
-                    "type": "number"
-                },
-                "y": {
-                    "type": "number"
-                },
-                "z": {
-                    "type": "number"
-                }
-            }
-        },
-        "main.InputDeck": {
-            "type": "object",
-            "properties": {
-                "locations": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/main.Location"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
         "main.Labware": {
             "type": "object",
             "properties": {
@@ -473,35 +216,6 @@
                 },
                 "zDimension": {
                     "description": "XDimension float64 `json:\"xDimension\"` // Microplate: 127.76\nYDimension float64 `json:\"yDimension\"` // Microplate: 85.48",
-                    "type": "number"
-                }
-            }
-        },
-        "main.Location": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "qw": {
-                    "type": "number"
-                },
-                "qx": {
-                    "type": "number"
-                },
-                "qy": {
-                    "type": "number"
-                },
-                "qz": {
-                    "type": "number"
-                },
-                "x": {
-                    "type": "number"
-                },
-                "y": {
-                    "type": "number"
-                },
-                "z": {
                     "type": "number"
                 }
             }

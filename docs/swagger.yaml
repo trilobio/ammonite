@@ -1,39 +1,5 @@
 basePath: /api/
 definitions:
-  main.Deck:
-    properties:
-      calibrated:
-        type: boolean
-      locations:
-        items:
-          $ref: '#/definitions/main.Location'
-        type: array
-      name:
-        type: string
-      qw:
-        type: number
-      qx:
-        type: number
-      qy:
-        type: number
-      qz:
-        type: number
-      x:
-        type: number
-      "y":
-        type: number
-      z:
-        type: number
-    type: object
-  main.InputDeck:
-    properties:
-      locations:
-        items:
-          $ref: '#/definitions/main.Location'
-        type: array
-      name:
-        type: string
-    type: object
   main.Labware:
     properties:
       name:
@@ -46,25 +12,6 @@ definitions:
         description: |-
           XDimension float64 `json:"xDimension"` // Microplate: 127.76
           YDimension float64 `json:"yDimension"` // Microplate: 85.48
-        type: number
-    type: object
-  main.Location:
-    properties:
-      name:
-        type: string
-      qw:
-        type: number
-      qx:
-        type: number
-      qy:
-        type: number
-      qz:
-        type: number
-      x:
-        type: number
-      "y":
-        type: number
-      z:
         type: number
     type: object
   main.Message:
@@ -93,151 +40,6 @@ info:
   title: Ammonite API
   version: "0.1"
 paths:
-  /decks:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/main.Deck'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            type: string
-      summary: Get all decks
-      tags:
-      - deck
-  /decks/:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Deck
-        in: body
-        name: deck
-        required: true
-        schema:
-          $ref: '#/definitions/main.InputDeck'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            type: string
-      summary: Create one deck
-      tags:
-      - deck
-  /decks/{name}:
-    delete:
-      parameters:
-      - description: Deck name
-        in: path
-        name: name
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            type: string
-      summary: Delete one deck
-      tags:
-      - deck
-    get:
-      parameters:
-      - description: Deck name
-        in: path
-        name: name
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/main.Deck'
-        "400":
-          description: Bad Request
-          schema:
-            type: string
-      summary: Get one deck
-      tags:
-      - deck
-  /decks/calibrate/{name}/{x}/{y}/{z}/{qw}/{qx}/{qy}/{qz}:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Deck name
-        in: path
-        name: name
-        required: true
-        type: string
-      - description: X coordinate
-        in: path
-        name: x
-        required: true
-        type: number
-      - description: Y coordinate
-        in: path
-        name: "y"
-        required: true
-        type: number
-      - description: Z coordinate
-        in: path
-        name: z
-        required: true
-        type: number
-      - description: Qw coordinate
-        in: path
-        name: qw
-        required: true
-        type: number
-      - description: Qx coordinate
-        in: path
-        name: qx
-        required: true
-        type: number
-      - description: Qy coordinate
-        in: path
-        name: qy
-        required: true
-        type: number
-      - description: Qz coordinate
-        in: path
-        name: qz
-        required: true
-        type: number
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            type: string
-      summary: Calibrate a deck
-      tags:
-      - deck
   /labwares:
     get:
       produces:
@@ -350,6 +152,15 @@ paths:
           type: array
       produces:
       - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
       summary: Run a protocol
       tags:
       - protocol

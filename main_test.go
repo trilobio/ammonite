@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/jmoiron/sqlx"
 	"io/ioutil"
 	"log"
@@ -27,18 +26,6 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to create database. Got err: %s", err)
 	}
 	app = initializeApp(db)
-
-	tx := db.MustBegin()
-	deck := InputDeck{Name: "deck", Locations: []Location{Location{Name: "1", X: 1, Y: 1, Z: 1}}}
-
-	err = CreateDeck(tx, deck)
-	if err != nil {
-		log.Fatalf("Failed to CreateDeck: %s", err)
-	}
-	err = tx.Commit()
-	if err != nil {
-		log.Fatalf("Failed to commit: %s", err)
-	}
 
 	code := m.Run()
 	os.Exit(code)
@@ -119,85 +106,11 @@ func TestLabwareApi(t *testing.T) {
 	}
 }
 
-func TestDeckApi(t *testing.T) {
-	// Create a new deck
-	m, _ := json.Marshal(InputDeck{"defaultDeck", []Location{Location{Name: "1", X: 1, Y: 1, Z: 1}}})
-	req := httptest.NewRequest("POST", "/api/decks", bytes.NewReader(m))
-	resp := httptest.NewRecorder()
-	app.Router.ServeHTTP(resp, req)
-
-	success := `{"message":"successful"}`
-	if strings.TrimSpace(resp.Body.String()) != success {
-		t.Errorf("Unexpected response. Expected: " + success + "\nGot: " + resp.Body.String())
-	}
-
-	// Get decks
-	req = httptest.NewRequest("GET", "/api/decks", nil)
-	resp = httptest.NewRecorder()
-	app.Router.ServeHTTP(resp, req)
-
-	var decks []Deck
-	reqBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Errorf("Reading /api/decks should succeed. Got error: %s", err)
-	}
-	err = json.Unmarshal(reqBody, &decks)
-	if err != nil {
-		t.Errorf("Unmarshal of deck should succeed. Got error: %s", err)
-	}
-
-	for _, deck := range decks {
-		if deck.Name == "defaultDeck" {
-			if deck.Calibrated != false {
-				t.Errorf("Initial decks should have no calibration")
-			}
-		}
-	}
-
-	// Get defaultDeck deck
-	req = httptest.NewRequest("GET", "/api/decks/defaultDeck", nil)
-	resp = httptest.NewRecorder()
-	app.Router.ServeHTTP(resp, req)
-	var deck Deck
-	reqBody, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Errorf("Reading /api/decks/defaultDeck should succeed. Got error: %s", err)
-	}
-	err = json.Unmarshal(reqBody, &deck)
-	if err != nil {
-		t.Errorf("Unmarshal of single deck should succeed. Got error: %s", err)
-	}
-
-	if deck.Name == "defaultDeck" {
-		if deck.Calibrated != false {
-			t.Errorf("Initial decks should have no calibration")
-		}
-	}
-
-	// Calibrate deck
-	qw, qx, qy, qz := 0.8063737663657652, -0.575080903948282, -0.13494466363153904, 0.02886590702694046
-	calibrateUrl := fmt.Sprintf("/api/decks/calibrate/defaultDeck/10/10/10/%f/%f/%f/%f", qw, qx, qy, qz)
-	req = httptest.NewRequest("POST", calibrateUrl, nil)
-	resp = httptest.NewRecorder()
-	app.Router.ServeHTTP(resp, req)
-	if strings.TrimSpace(resp.Body.String()) != success {
-		t.Errorf("Unexpected response. Expected: " + success + "\nGot: " + resp.Body.String())
-	}
-
-	// Delete defaultDeck deck
-	req = httptest.NewRequest("DELETE", "/api/decks/defaultDeck", nil)
-	resp = httptest.NewRecorder()
-	app.Router.ServeHTTP(resp, req)
-	if strings.TrimSpace(resp.Body.String()) != success {
-		t.Errorf("Unexpected response. Expected: " + success + "\nGot: " + resp.Body.String())
-	}
-}
-
 func TestProtocolApi(t *testing.T) {
 	// Create a new deck
 	var moves []CommandInput
-	moves = append(moves, CommandXyz{132, 158, 121, 0.8063737663657652, -0.575080903948282, -0.13494466363153904, 0.02886590702694046})
-	moves = append(moves, CommandXyz{132, 158, 141, 0.8063737663657652, -0.575080903948282, -0.13494466363153904, 0.02886590702694046}) // Move up by 20
+	moves = append(moves, CommandXyz{132, 158, 121})
+	moves = append(moves, CommandXyz{132, 158, 141})
 	moves = append(moves, CommandMove{Deck: "deck", Location: "1", LabwareName: "nest_96_wellplate_100ul_pcr_full_skirt", Address: "A1", DepthFromBottom: 1})
 	moves = append(moves, CommandMove{Deck: "deck", Location: "1", LabwareName: "nest_96_wellplate_100ul_pcr_full_skirt", Address: "B1", DepthFromBottom: 1})
 
